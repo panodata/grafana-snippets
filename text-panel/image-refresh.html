@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--
+About
+=====
+Embedding remote images with Grafana's Text Panel, with interval-based refresh and cache busting.
+
+Resources
+=========
+- https://github.com/panodata/grafana-snippets
+- https://community.hiveeyes.org/t/panel-fur-webcam-bild-das-regelmassig-aktualisiert-wird/4921
+- https://community.grafana.com/t/refreshing-gif-image/49507/11
+-->
+<html>
+<head>
+  <title>mois' Beecam</title>
+
+  <!--
+  Refresh image elements in HTML body, with cache busting.
+  The refresh interval unit is "seconds".
+  -->
+
+  <script type="text/javascript">
+
+      // Track all image elements which should be refreshed, in order to prevent
+      // registering refresh handlers twice, for example when running multiple
+      // instances of this component.
+      window.refreshing_images = []
+
+      /**
+       * Apply image refreshing to all `img` elements which have a `data-refresh` attribute.
+       */
+      function registerRefreshingImages() {
+          const images = document.getElementsByTagName("img")
+          for (const image of images) {
+              if (!window.refreshing_images.includes(image) && "data-refresh" in image.attributes) {
+                  window.refreshing_images.push(image)
+                  console.log(`Registering image refresh for: ${image.src}`)
+                  refreshImage(image)
+              }
+          }
+      }
+
+      /**
+       * Continuously refresh image element using an interval obtained
+       * from its `data-refresh` attribute. The unit is "seconds".
+       */
+      function refreshImage(image) {
+
+          // Get settings from DOM element.
+          const refresh_delay = Number.parseInt(image.attributes["data-refresh"].value)
+
+          // Remember original image URL.
+          if (!image["data-src"]) image["data-src"] = image.src
+
+          // Compute URL, with cache busting query parameter.
+          let cachebuster = (Math.random() * 10000000).toFixed()
+          const image_url = image["data-src"] + "?nocache=" + cachebuster.toString()
+
+          // Load image.
+          console.log(`Refreshing image at ${image_url}`)
+          image.src = image_url
+
+          // Schedule next refresh cycle.
+          console.log(`Scheduling refresh in ${refresh_delay} seconds`)
+          setTimeout(refreshImage, refresh_delay * 1000, image)
+      }
+
+      /**
+       * Start a bit later, after the component's body has been loaded into the DOM.
+       *
+       * Using the `DOMContentLoaded` event does not work, because the page has
+       * been loaded already, while this component is only loaded inside a panel.
+       *
+       * TODO: Use corresponding Grafana events?
+       */
+      setTimeout(registerRefreshingImages, 1000)
+
+  </script>
+
+</head>
+<body>
+  <img width="640" src="https://www.euse.de/honig/beescale/latest_b-cam1.jpg" data-refresh="10"/>
+  <img width="640" src="https://www.euse.de/honig/beescale/latest_b-cam2.jpg" data-refresh="15"/>
+</body>
+</html>
